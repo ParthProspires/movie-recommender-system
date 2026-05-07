@@ -7,11 +7,56 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-# Fetch movie poster from TMDB API
+# ---------------- PAGE CONFIG ---------------- #
+
+st.set_page_config(
+    page_title="Movie Recommender",
+    page_icon="🎬",
+    layout="wide"
+)
+
+
+# ---------------- CUSTOM CSS ---------------- #
+
+st.markdown("""
+<style>
+
+.main {
+    background-color: #0E1117;
+    color: white;
+}
+
+h1 {
+    text-align: center;
+    color: #E50914;
+    font-size: 50px;
+}
+
+.stButton>button {
+    background-color: #E50914;
+    color: white;
+    border-radius: 10px;
+    height: 50px;
+    width: 200px;
+    font-size: 20px;
+    border: none;
+}
+
+.stButton>button:hover {
+    background-color: #ff1e28;
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ---------------- FETCH POSTER ---------------- #
+
 def fetch_poster(movie_id):
 
     response = requests.get(
-        'https://api.themoviedb.org/3/movie/{}?api_key=095c918ec39cdc2d25b163f9b0757d08&language=en-US'.format(movie_id)
+        f'https://api.themoviedb.org/3/movie/{movie_id}?api_key=095c918ec39cdc2d25b163f9b0757d08&language=en-US'
     )
 
     data = response.json()
@@ -19,16 +64,14 @@ def fetch_poster(movie_id):
     return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
 
 
-# Recommendation function
+# ---------------- RECOMMEND FUNCTION ---------------- #
+
 def recommend(movie):
 
-    # Find movie index
     movie_index = movies[movies['title'] == movie].index[0]
 
-    # Get similarity scores
     distances = similarity[movie_index]
 
-    # Get top 5 similar movies
     movies_list = sorted(
         list(enumerate(distances)),
         reverse=True,
@@ -40,69 +83,84 @@ def recommend(movie):
 
     for i in movies_list:
 
-        # Get movie id
         movie_id = movies.iloc[i[0]]['id']
 
-        # Append movie title
         recommended_movies.append(movies.iloc[i[0]].title)
 
-        # Append movie poster
         recommended_movies_posters.append(fetch_poster(movie_id))
 
     return recommended_movies, recommended_movies_posters
 
 
-# Load movie dictionary
+# ---------------- LOAD DATA ---------------- #
+
 movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
 
-# Convert dictionary into dataframe
 movies = pd.DataFrame(movies_dict)
 
 
-# Create vectors
+# ---------------- CREATE SIMILARITY ---------------- #
+
 cv = CountVectorizer(max_features=5000, stop_words='english')
 
 vectors = cv.fit_transform(movies['tags']).toarray()
 
-
-# Calculate similarity
 similarity = cosine_similarity(vectors)
 
 
-# Streamlit title
-st.title('Movie Recommender System')
+# ---------------- TITLE ---------------- #
+
+st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+
+st.write("### Find movies similar to your favorite one 🍿")
 
 
-# Dropdown menu
+# ---------------- SELECT MOVIE ---------------- #
+
 selected_movie_name = st.selectbox(
-    'Search for a movie',
+    "Type or select a movie",
     movies['title'].values
 )
 
 
-# Recommend button
-if st.button('Recommend'):
+# ---------------- BUTTON ---------------- #
 
-    names, posters = recommend(selected_movie_name)
+if st.button('Show Recommendation'):
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    with st.spinner('Finding best movies for you...'):
 
-    with col1:
-        st.text(names[0])
-        st.image(posters[0])
+        names, posters = recommend(selected_movie_name)
 
-    with col2:
-        st.text(names[1])
-        st.image(posters[1])
+        st.write("## Recommended Movies ❤️")
 
-    with col3:
-        st.text(names[2])
-        st.image(posters[2])
+        col1, col2, col3, col4, col5 = st.columns(5)
 
-    with col4:
-        st.text(names[3])
-        st.image(posters[3])
+        with col1:
+            st.image(posters[0])
+            st.caption(names[0])
 
-    with col5:
-        st.text(names[4])
-        st.image(posters[4])
+        with col2:
+            st.image(posters[1])
+            st.caption(names[1])
+
+        with col3:
+            st.image(posters[2])
+            st.caption(names[2])
+
+        with col4:
+            st.image(posters[3])
+            st.caption(names[3])
+
+        with col5:
+            st.image(posters[4])
+            st.caption(names[4])
+
+
+# ---------------- FOOTER ---------------- #
+
+st.markdown("""
+<hr>
+<center>
+Made with ❤️ using Streamlit
+</center>
+""", unsafe_allow_html=True)
